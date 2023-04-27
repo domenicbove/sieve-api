@@ -1,4 +1,4 @@
-module github.com/domenicbove
+module github.com/domenicbove/sieve-api
 
 go 1.20
 
