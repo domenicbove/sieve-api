@@ -54,18 +54,19 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO start model
-	createPod()
+	// createPod()
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
 }
 
-// curl -X POST http://localhost:10000/push \
+// curl -X POST http://localhost:8080/push \
 //    -H 'Content-Type: application/json' \
 //    -d '{"input": "whatever" }'
 
 func redisClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		// TODO use env vars here, switch back to localhost for local dev
+		Addr:     "redis:6379",
 		Password: "",
 		DB:       0,
 	})
@@ -124,7 +125,18 @@ func handleRequests() {
 	myRouter.HandleFunc("/data/{id}", jobData)
 	myRouter.HandleFunc("/status/{id}", jobStatus)
 
+	myRouter.HandleFunc("/health", healthHandler)
+	myRouter.HandleFunc("/readiness", readinessHandler)
+
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func readinessHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
