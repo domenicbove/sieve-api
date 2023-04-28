@@ -1,31 +1,47 @@
+# Sieve Takehome
+This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes. The project is deployed on Minikube, but can be deployed on any K8s cluster!
+
+### Prerequisites
+- minikube
+- kubectl cli
+
+## Steps
+1. Start Minikube
 ```
 minikube start
 ```
 
-
-To Build, should be accessible within minikube
+2. Build API Image
 ```
-# need to run this before building to make the image accessible by minikube i think
-eval $(minikube docker-env)
-docker build -t sieve-api .
+make build-minikube
 ```
 
-To Deploy on minikube
-
-To run redis # should put this into deployment
+3. Deploy Application Stack
 ```
-docker run --name redis-test-instance -p 6379:6379 -d redis
-
-kubectl run redis --image=redis:latest --replicas=1 --port=6379
+make deploy
 ```
 
-TODO add makefile
-
+4. Port-foward the API
 ```
-curl -X POST http://localhost:8080/push \\n   -H 'Content-Type: application/json' \\n   -d '{"input": "whatever" }'
-curl http://localhost:8080/status/2381ac17-8c72-4513-895d-1a9f0d538fe0
-curl http://localhost:8080/data/2381ac17-8c72-4513-895d-1a9f0d538fe0
-kubectl port-forward sieve-api-69dfb57d48-vmbkw 8080:8080
+kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0].metadata.name}') 8080:8080
+```
+
+5. Trigger a new Model
+```
+# curl -X POST http://localhost:8080/push -H 'Content-Type: application/json' -d '{"input": "whatever"}'
+{"id":"edbf2f12-9148-4623-8f6e-ec35d254dbf4"}
+```
+
+6. Query Status
+```
+# curl http://localhost:8080/status/<id>
+{"status":"queued"}
+```
+
+7. Query Result
+```
+# curl http://localhost:8080/data/<id>
+{"input":"whatever","latency":"117"}
 ```
 
 
