@@ -48,4 +48,3 @@ kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0]
 ```
 docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
 ```
-
