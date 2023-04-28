@@ -17,7 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -30,6 +30,7 @@ const (
 // Job - stores all job data, will be stored in redis
 type Job struct {
 	Input     string `json:"input"`
+	Output    string `json:"output"`
 	Status    string `json:"status"`
 	StartTime int64  `json:"startTime"`
 }
@@ -53,8 +54,7 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
-	// TODO start model
-	// createPod()
+	createPod(jobId)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
 }
@@ -101,7 +101,11 @@ func jobData(w http.ResponseWriter, r *http.Request) {
 	// TODO check if job complete
 	latency := time.Now().Unix() - job.StartTime
 
-	json.NewEncoder(w).Encode(map[string]string{"input": job.Input, "latency": strconv.Itoa(int(latency))})
+	json.NewEncoder(w).Encode(map[string]string{
+		"input":   job.Input,
+		"latency": strconv.Itoa(int(latency)),
+		"output":  job.Output,
+	})
 }
 
 func jobStatus(w http.ResponseWriter, r *http.Request) {
@@ -145,44 +149,55 @@ func main() {
 
 // TODO need to figure out how to move all this into correct directory structure
 
-func createPod() {
-	kubeconfig := "/Users/britonns/.kube/config"
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+func createPod(jobId string) {
+
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// running locally...
+	// kubeconfig := "/Users/britonns/.kube/config"
+	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
-	pod := getPodObject()
+
+	pod := getPodObject(jobId)
 
 	// now create the pod in kubernetes cluster using the clientset
 	pod, err = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(pod)
 }
 
-func getPodObject() *corev1.Pod {
+func getPodObject(jobId string) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-test-pod",
-			Namespace: "default",
+			Name:      "model",   // add on jobID to avoid collisions
+			Namespace: "default", // conside namespaces later
 			Labels: map[string]string{
-				"app": "demo",
+				"app": "model",
 			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:            "busybox",
-					Image:           "busybox",
+					Name:            "model",
+					Image:           "model:latest",
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command: []string{
-						"sleep",
-						"3600",
+					Command:         []string{"python"},
+					Args: []string{
+						"src/model.py",
+						jobId,
 					},
 				},
 			},

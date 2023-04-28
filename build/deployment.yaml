@@ -33,7 +33,33 @@ spec:
             port: 8080
             scheme: HTTP
           initialDelaySeconds: 5
-          timeoutSeconds: 1  
+          timeoutSeconds: 1
+---
+# permissions to do create pods... eventually will change to job
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: create-pod
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: create-pod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: create-pod
+subjects:
+- kind: ServiceAccount
+  name: default    # using default SA for now, might be better to create unique one for this
+  namespace: default
 ---
 # Very rudimentary redis deployment!
 apiVersion: apps/v1
@@ -52,7 +78,7 @@ spec:
     spec:
       containers:
       - name: redis
-        image: redis:latest
+        image: redis/redis-stack:latest
         imagePullPolicy: IfNotPresent
         ports:
           - containerPort: 6379
