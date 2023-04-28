@@ -65,7 +65,6 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 
 func redisClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
-		// TODO use env vars here, switch back to localhost for local dev
 		Addr:     "redis:6379",
 		Password: "",
 		DB:       0,
@@ -150,20 +149,11 @@ func main() {
 
 func createPod(jobId, jobInput string) {
 
-	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	// running locally...
-	// kubeconfig := "/Users/britonns/.kube/config"
-	// config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		fmt.Println(err)
