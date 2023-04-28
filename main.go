@@ -14,6 +14,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -21,10 +22,8 @@ import (
 )
 
 const (
-	JobStatusQueued     = "queued"
-	JobStatusProcessing = "processing"
-	JobStatusFinished   = "finished"
-	JobStatusError      = "error"
+	JobStatusQueued = "queued"
+	JobStatusError  = "error"
 )
 
 // Job - stores all job data, will be stored in redis
@@ -33,6 +32,7 @@ type Job struct {
 	Output    string `json:"output"`
 	Status    string `json:"status"`
 	StartTime int64  `json:"startTime"`
+	EndTime   int64  `json:"endTime"`
 }
 
 func pushNewJob(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +54,7 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
-	createPod(jobId)
+	createPod(jobId, job.Input)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
 }
@@ -98,8 +98,7 @@ func jobData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO check if job complete
-	latency := time.Now().Unix() - job.StartTime
+	latency := job.EndTime - job.StartTime
 
 	json.NewEncoder(w).Encode(map[string]string{
 		"input":   job.Input,
@@ -149,7 +148,7 @@ func main() {
 
 // TODO need to figure out how to move all this into correct directory structure
 
-func createPod(jobId string) {
+func createPod(jobId, jobInput string) {
 
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -170,35 +169,38 @@ func createPod(jobId string) {
 		fmt.Println(err)
 	}
 
-	pod := getPodObject(jobId)
+	modelJob := getModelJob(jobId, jobInput)
 
-	// now create the pod in kubernetes cluster using the clientset
-	pod, err = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+	_, err = clientset.BatchV1().Jobs(modelJob.Namespace).Create(context.TODO(), modelJob, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
+
 }
 
-func getPodObject(jobId string) *corev1.Pod {
-	return &corev1.Pod{
+func getModelJob(jobId, jobInput string) *batchv1.Job {
+	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "model",   // add on jobID to avoid collisions
-			Namespace: "default", // conside namespaces later
-			Labels: map[string]string{
-				"app": "model",
-			},
+			Name:      fmt.Sprintf("model-%s", jobId[:5]),
+			Namespace: "default",
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:            "model",
-					Image:           "model:latest",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Command:         []string{"python"},
-					Args: []string{
-						"src/model.py",
-						jobId,
+		Spec: batchv1.JobSpec{
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            "model",
+							Image:           "model:latest",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Command:         []string{"python"},
+							Args: []string{
+								"src/model.py",
+								jobId,
+								jobInput,
+							},
+						},
 					},
+					RestartPolicy: corev1.RestartPolicyNever,
 				},
 			},
 		},

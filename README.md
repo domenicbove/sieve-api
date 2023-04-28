@@ -11,9 +11,10 @@ This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes
 minikube start
 ```
 
-2. Build API Image
+2. Build API Image and Model Image (accessible within minikube)
 ```
-make build-minikube
+make build-api
+make build-model
 ```
 
 3. Deploy Application Stack
@@ -28,7 +29,7 @@ kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0]
 
 5. Trigger a new Model
 ```
-# curl -X POST http://localhost:8080/push -H 'Content-Type: application/json' -d '{"input": "whatever"}'
+# curl -X POST http://localhost:8080/push -H 'Content-Type: application/json' -d '{"input": "dommy"}'
 {"id":"edbf2f12-9148-4623-8f6e-ec35d254dbf4"}
 ```
 
