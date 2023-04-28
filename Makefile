@@ -15,3 +15,7 @@ deploy:
 .PHONY: cleanup
 cleanup:
 	kubectl delete -f build/deployment.yaml
+
+.PHONY: test
+test:
+	python3 test/test.py

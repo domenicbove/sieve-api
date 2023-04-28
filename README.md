@@ -45,7 +45,9 @@ kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0]
 {"input":"whatever","latency":"117"}
 ```
 
-## Dev notes
+## Test
+While the ports are forward to trigger the test file run. (I'm using python3 cli)
 ```
-docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
+python3 -m pip install requests
+make test
 ```
