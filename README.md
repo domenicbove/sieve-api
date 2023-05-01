@@ -9,6 +9,7 @@ This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes
 1. Start Minikube
 ```
 minikube start
+eval $(minikube docker-env)
 ```
 
 2. Build API Image and Model Image (accessible within minikube)

@@ -43,17 +43,24 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	job.StartTime = time.Now().Unix()
 	jobId := uuid.New().String()
 
+	fmt.Println("recieved push job request")
+
 	jsonJob, err := json.Marshal(job)
 	if err != nil {
 		fmt.Println(err)
 	}
 
+	// add Job Details to Redis
 	client := redisClient()
 	err = client.Set(jobId, jsonJob, 0).Err()
 	if err != nil {
 		fmt.Println(err)
 	}
 
+	// add jobId to jobs list
+	client.RPush("jobs", jobId)
+
+	// if len of jobs list is greater than 5* running pods, lets create another
 	createPod(jobId, job.Input)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
@@ -185,8 +192,6 @@ func getModelJob(jobId, jobInput string) *batchv1.Job {
 							Command:         []string{"python"},
 							Args: []string{
 								"src/model.py",
-								jobId,
-								jobInput,
 							},
 						},
 					},
