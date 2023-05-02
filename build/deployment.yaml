@@ -35,7 +35,7 @@ spec:
           initialDelaySeconds: 5
           timeoutSeconds: 1
 ---
-# permissions to do create pods... eventually will change to job
+# api server needs to be able to create a job
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -55,7 +55,30 @@ roleRef:
   name: create-job
 subjects:
 - kind: ServiceAccount
-  name: default    # using default SA for now, might be better to create unique one for this
+  name: default
+  namespace: default
+---
+# model needs to add annotation to itself
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: update-pod
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: update-pod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: update-pod
+subjects:
+- kind: ServiceAccount
+  name: default
   namespace: default
 ---
 # Very rudimentary redis deployment!

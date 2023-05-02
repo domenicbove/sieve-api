@@ -3,6 +3,9 @@ import time
 import sys
 import redis
 import json
+import os
+
+from kubernetes import client, config
 
 class Model:
     def __init__(self):
@@ -45,6 +48,17 @@ if redis_client.llen('jobs') == 0:
 
 print("Setting up Model")
 model1 = Model()
+
+# after setup, need to add annotation to self
+# Configs can be set in Configuration class directly or using helper utility
+config.load_incluster_config()
+v1 = client.CoreV1Api()
+
+# todo might be better to label and not annotate...
+patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
+  "metadata":{"annotations":{"setup": "true"}}
+})
+print("Pod annotation added. status='%s'" % str(patch_response.status))
 
 while True:
     job = redis_client.lpop('jobs')

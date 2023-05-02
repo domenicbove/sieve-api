@@ -52,3 +52,10 @@ While the ports are forward to trigger the test file run. (I'm using python3 cli
 python3 -m pip install requests
 make test
 ```
+
+1 setup model, assume at worst will need to wait 10seconds to new job to land
+queue has 3 in it... 10+30
+
+latency of new job 50 seconds
+
+if len(queue) * 10 / num of setup models > 50 seconds, should just start up a new model
