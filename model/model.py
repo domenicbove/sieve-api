@@ -56,7 +56,7 @@ v1 = client.CoreV1Api()
 
 # todo might be better to label and not annotate...
 patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
-  "metadata":{"annotations":{"setup": "true"}}
+  "metadata":{"labels":{"setup-complete": "true"}}
 })
 print("Pod annotation added. status='%s'" % str(patch_response.status))
 

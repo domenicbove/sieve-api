@@ -60,8 +60,9 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	// add jobId to jobs list
 	client.RPush("jobs", jobId)
 
-	// if len of jobs list is greater than 5* running pods, lets create another
-	createPod(jobId, job.Input)
+	// create job based off of queue length and number of setup models
+	jobQueueLength := client.LLen("jobs").Val()
+	createModelJob(jobId, job.Input, jobQueueLength)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
 }
@@ -146,9 +147,7 @@ func main() {
 	handleRequests()
 }
 
-// TODO need to figure out how to move all this into correct directory structure
-
-func createPod(jobId, jobInput string) {
+func createModelJob(jobId, jobInput string, jobQueueLength int64) {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -158,6 +157,19 @@ func createPod(jobId, jobInput string) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: "setup-complete=true",
+	}
+	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), listOptions)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//Length(Job Queue) * 10 seconds / # Setup Models > 52 seconds we want to create a new job
+	if int(jobQueueLength)*10/len(pods.Items) < 52 {
+		return
 	}
 
 	modelJob := getModelJob(jobId, jobInput)
