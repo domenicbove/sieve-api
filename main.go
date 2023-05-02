@@ -66,10 +66,6 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
 }
 
-// curl -X POST http://localhost:8080/push \
-//    -H 'Content-Type: application/json' \
-//    -d '{"input": "whatever" }'
-
 func redisClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
 		Addr:     "redis:6379",
@@ -99,7 +95,6 @@ func jobData(w http.ResponseWriter, r *http.Request) {
 	job, err := getJob(vars["id"])
 	if err != nil {
 		fmt.Println(err)
-		// TODO more intelligent error handling
 		w.WriteHeader(404)
 		return
 	}
@@ -119,7 +114,6 @@ func jobStatus(w http.ResponseWriter, r *http.Request) {
 	job, err := getJob(vars["id"])
 	if err != nil {
 		fmt.Println(err)
-		// TODO more intelligent error handling
 		w.WriteHeader(404)
 		return
 	}

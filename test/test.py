@@ -8,7 +8,13 @@ API_DATA = "http://localhost:8080" + "/data"
 ids = []
 latencies = []
 outputs = []
-for i in range(10):
+for i in range(5):
+    r = requests.post(API_PUSH, params={"input": "test"})
+    _id = r.json()["id"]
+    ids.append(_id)
+
+time.sleep(55)
+for i in range(5):
     r = requests.post(API_PUSH, params={"input": "test"})
     _id = r.json()["id"]
     ids.append(_id)
