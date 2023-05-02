@@ -61,7 +61,9 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	client.RPush("jobs", jobId)
 
 	// create job based off of queue length and number of setup models
-	jobQueueLength := client.LLen("jobs").Val()
+	jobQueueLength := int(client.LLen("jobs").Val())
+	fmt.Printf("number of jobs in the queue: %d\n", jobQueueLength)
+
 	createModelJob(jobId, job.Input, jobQueueLength)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
@@ -91,6 +93,8 @@ func getJob(jobId string) (Job, error) {
 }
 
 func jobData(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("recieved job data request")
+
 	vars := mux.Vars(r)
 
 	job, err := getJob(vars["id"])
@@ -110,6 +114,8 @@ func jobData(w http.ResponseWriter, r *http.Request) {
 }
 
 func jobStatus(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("recieved job status request")
+
 	vars := mux.Vars(r)
 
 	job, err := getJob(vars["id"])
@@ -147,7 +153,7 @@ func main() {
 	handleRequests()
 }
 
-func createModelJob(jobId, jobInput string, jobQueueLength int64) {
+func createModelJob(jobId, jobInput string, jobQueueLength int) {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -162,14 +168,18 @@ func createModelJob(jobId, jobInput string, jobQueueLength int64) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "setup-complete=true",
 	}
-	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), listOptions)
+	pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), listOptions)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	//Length(Job Queue) * 10 seconds / # Setup Models > 52 seconds we want to create a new job
-	if int(jobQueueLength)*10/len(pods.Items) < 52 {
-		return
+	numSetupPods := len(pods.Items)
+	fmt.Printf("number of setup models: %d\n", numSetupPods)
+
+	if numSetupPods > 0 {
+		if jobQueueLength*10/numSetupPods < 52 {
+			return
+		}
 	}
 
 	modelJob := getModelJob(jobId, jobInput)

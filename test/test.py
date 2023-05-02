@@ -13,7 +13,7 @@ for i in range(5):
     _id = r.json()["id"]
     ids.append(_id)
 
-time.sleep(45)
+time.sleep(50)
 for i in range(5):
     r = requests.post(API_PUSH, params={"input": "test"})
     _id = r.json()["id"]
