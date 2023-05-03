@@ -22,8 +22,12 @@ import (
 )
 
 const (
-	JobStatusQueued = "queued"
-	JobStatusError  = "error"
+	JobStatusQueued   = "queued"
+	JobStatusError    = "error"
+	JobStatusFinished = "finished"
+	NewModelLatency   = 52
+	RedisJobQueueName = "jobs"
+	RedisAddress      = "redis:6379"
 )
 
 // Job - stores all job data, will be stored in redis
@@ -43,7 +47,7 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 	job.StartTime = time.Now().Unix()
 	jobId := uuid.New().String()
 
-	fmt.Println("recieved push job request")
+	fmt.Printf("recieved push job request for job: %s\n", jobId)
 
 	jsonJob, err := json.Marshal(job)
 	if err != nil {
@@ -52,18 +56,18 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 
 	// add Job Details to Redis
 	client := redisClient()
+	fmt.Printf("adding job details to redis for job: %s\n", jobId)
 	err = client.Set(jobId, jsonJob, 0).Err()
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	// add jobId to jobs list
-	client.RPush("jobs", jobId)
+	fmt.Printf("adding job: %s to job queue\n", jobId)
+	client.RPush(RedisJobQueueName, jobId)
 
 	// create job based off of queue length and number of setup models
-	jobQueueLength := int(client.LLen("jobs").Val())
-	fmt.Printf("number of jobs in the queue: %d\n", jobQueueLength)
-
+	jobQueueLength := int(client.LLen(RedisJobQueueName).Val())
 	createModelJob(jobId, job.Input, jobQueueLength)
 
 	json.NewEncoder(w).Encode(map[string]string{"id": jobId})
@@ -71,7 +75,7 @@ func pushNewJob(w http.ResponseWriter, r *http.Request) {
 
 func redisClient() *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     RedisAddress,
 		Password: "",
 		DB:       0,
 	})
@@ -101,6 +105,13 @@ func jobData(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(404)
+		return
+	}
+
+	if job.Status != JobStatusFinished {
+		json.NewEncoder(w).Encode(map[string]string{
+			"input": job.Input,
+		})
 		return
 	}
 
@@ -173,16 +184,22 @@ func createModelJob(jobId, jobInput string, jobQueueLength int) {
 		fmt.Println(err)
 	}
 
-	numSetupPods := len(pods.Items)
-	fmt.Printf("number of setup models: %d\n", numSetupPods)
+	numSetupModels := len(pods.Items)
+	fmt.Printf("number of setup models: %d\n", numSetupModels)
+	fmt.Printf("number of jobs in the queue: %d\n", jobQueueLength)
 
-	if numSetupPods > 0 {
-		if jobQueueLength*10/numSetupPods < 52 {
+	if numSetupModels > 0 {
+		setupModelLatencyEstimate := (jobQueueLength + 1) * 10 / numSetupModels
+		fmt.Printf("estimate of job latency on running models: %d\n", setupModelLatencyEstimate)
+		if setupModelLatencyEstimate < NewModelLatency {
+			fmt.Printf("not creating new model job for job: %s\n", jobId)
 			return
 		}
 	}
 
 	modelJob := getModelJob(jobId, jobInput)
+
+	fmt.Printf("creating new model job for job: %s\n", jobId)
 
 	_, err = clientset.BatchV1().Jobs(modelJob.Namespace).Create(context.TODO(), modelJob, metav1.CreateOptions{})
 	if err != nil {

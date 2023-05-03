@@ -7,6 +7,11 @@ import os
 
 from kubernetes import client, config
 
+REDIS_JOB_QUEUE_NAME = "jobs"
+REDIS_HOSTNAME = "redis"
+JOB_STATUS_FINISHED = "finished"
+JOB_STATUS_PROCESSING = "processing"
+
 class Model:
     def __init__(self):
         time.sleep(35)
@@ -23,7 +28,7 @@ def runJob(redis_client, job_id):
     job_details_bytes = redis_client.get(job_id)
 
     job_details = json.loads(job_details_bytes)
-    job_details['status'] = "processing"
+    job_details['status'] = JOB_STATUS_PROCESSING
 
     job_details_bytes = json.dumps(job_details).encode('utf-8')
     redis_client.set(job_id, job_details_bytes)
@@ -32,7 +37,7 @@ def runJob(redis_client, job_id):
     out = model1.predict(hello=job_details['input'])
 
     # update job details in redis
-    job_details['status'] = "finished"
+    job_details['status'] = JOB_STATUS_FINISHED
     job_details['output'] = out["output"]
     job_details['endTime'] = int(time.time())
 
@@ -40,28 +45,26 @@ def runJob(redis_client, job_id):
     redis_client.set(job_id, job_details_bytes)
 
 
-redis_client = redis.Redis(host='redis')
+redis_client = redis.Redis(host=REDIS_HOSTNAME)
 
 # if there are no jobs in queue, exit
-if redis_client.llen('jobs') == 0:
+if redis_client.llen(REDIS_JOB_QUEUE_NAME) == 0:
     sys.exit()
 
 print("Setting up Model")
 model1 = Model()
 
-# after setup, need to add annotation to self
-# Configs can be set in Configuration class directly or using helper utility
 config.load_incluster_config()
 v1 = client.CoreV1Api()
 
-# todo might be better to label and not annotate...
+# hostname env var matches podname in k8s pods
 patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
   "metadata":{"labels":{"setup-complete": "true"}}
 })
 print("Pod annotation added. status='%s'" % str(patch_response.status))
 
 while True:
-    job = redis_client.lpop('jobs')
+    job = redis_client.lpop(REDIS_JOB_QUEUE_NAME)
     if job is None:
         sys.exit()
     job_id = job.decode('utf-8')

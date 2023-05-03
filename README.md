@@ -2,6 +2,7 @@
 This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes. The project is deployed on Minikube, but can be deployed on any K8s cluster!
 
 ### Prerequisites
+- docker
 - minikube
 - kubectl cli
 
@@ -9,10 +10,14 @@ This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes
 1. Start Minikube
 ```
 minikube start
+```
+
+2. Make new Docker image Accessible within Minikube
+```
 eval $(minikube docker-env)
 ```
 
-2. Build API Image and Model Image (accessible within minikube)
+3. Build API and Model Images
 ```
 make build-api
 make build-model
@@ -53,9 +58,7 @@ python3 -m pip install requests
 make test
 ```
 
-1 setup model, assume at worst will need to wait 10seconds to new job to land
-queue has 3 in it... 10+30
-
-latency of new job 50 seconds
-
-if len(queue) * 10 / num of setup models > 50 seconds, should just start up a new model
+After a test run, you can clear out the Completed Model Pods with:
+```
+kubectl delete jobs `kubectl get jobs -o custom-columns=:.metadata.name`
+```
