@@ -1,5 +1,7 @@
 # Sieve Takehome
-This is a simple example of an API to orchestrate a dummy ML Model on Kubernetes. The project is deployed on Minikube, but can be deployed on any K8s cluster!
+This is a simple example of an API to orchestrate a mock ML Model on Kubernetes and store details on Redis. The project is deployed on Minikube, but can be deployed on any K8s cluster!
+
+Note: this project will run in the default namespace
 
 ### Prerequisites
 - docker
@@ -28,7 +30,7 @@ make build-model
 make deploy
 ```
 
-4. Port-foward the API
+4. Port-foward the API in a new terminal
 ```
 kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0].metadata.name}') 8080:8080
 ```
@@ -52,7 +54,7 @@ kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0]
 ```
 
 ## Test
-While the ports are forward to trigger the test file run. (I'm using python3 cli)
+While the API port is forwarded, to trigger the test file run. (I'm using python3 cli)
 ```
 python3 -m pip install requests
 make test

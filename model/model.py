@@ -9,8 +9,10 @@ from kubernetes import client, config
 
 REDIS_JOB_QUEUE_NAME = "jobs"
 REDIS_HOSTNAME = "redis"
+KUBERNETES_NAMESPACE = "default"
 JOB_STATUS_FINISHED = "finished"
 JOB_STATUS_PROCESSING = "processing"
+
 
 class Model:
     def __init__(self):
@@ -24,7 +26,7 @@ class Model:
 def runJob(redis_client, job_id):
     print("Executing Model for Job: " + job_id)
 
-    # after creating the model, update job status in redis
+    # update job status to processing in redis
     job_details_bytes = redis_client.get(job_id)
 
     job_details = json.loads(job_details_bytes)
@@ -54,21 +56,23 @@ if redis_client.llen(REDIS_JOB_QUEUE_NAME) == 0:
 print("Setting up Model")
 model1 = Model()
 
+# after model setup, add model-ready=true label to pod
 config.load_incluster_config()
 v1 = client.CoreV1Api()
 
 # hostname env var matches podname in k8s pods
-patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
+patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), KUBERNETES_NAMESPACE, body={
   "metadata":{"labels":{"model-ready": "true"}}
 })
 print("Pod label added. status='%s'" % str(patch_response.status))
 
+# loop over remaining jobs in queue before exiting
 while True:
     job = redis_client.lpop(REDIS_JOB_QUEUE_NAME)
     if job is None:
-        # before exiting, update label on pod
-        patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
-        "metadata":{"labels":{"model-ready": "false"}}
+        # before exiting, update model-ready label to false
+        patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), KUBERNETES_NAMESPACE, body={
+            "metadata":{"labels":{"model-ready": "false"}}
         })
         print("Pod label added. status='%s'" % str(patch_response.status))
 

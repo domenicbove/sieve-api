@@ -28,6 +28,7 @@ const (
 	NewModelLatency   = 52
 	RedisJobQueueName = "jobs"
 	RedisAddress      = "redis:6379"
+	Namespace         = "default"
 )
 
 // Job - stores all job data, will be stored in redis
@@ -176,10 +177,11 @@ func createModelJob(jobId, jobInput string, jobQueueLength int) {
 		fmt.Println(err)
 	}
 
+	// get pods with model-ready=true label
 	listOptions := metav1.ListOptions{
 		LabelSelector: "model-ready=true",
 	}
-	pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), listOptions)
+	pods, err := clientset.CoreV1().Pods(Namespace).List(context.TODO(), listOptions)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -211,8 +213,8 @@ func createModelJob(jobId, jobInput string, jobQueueLength int) {
 func getModelJob(jobId, jobInput string) *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("model-%s", jobId[:5]),
-			Namespace: "default",
+			Name:      fmt.Sprintf("model-%s", jobId[:5]), // job name cant be too long
+			Namespace: Namespace,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
