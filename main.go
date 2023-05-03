@@ -177,7 +177,7 @@ func createModelJob(jobId, jobInput string, jobQueueLength int) {
 	}
 
 	listOptions := metav1.ListOptions{
-		LabelSelector: "setup-complete=true",
+		LabelSelector: "model-ready=true",
 	}
 	pods, err := clientset.CoreV1().Pods("default").List(context.TODO(), listOptions)
 	if err != nil {

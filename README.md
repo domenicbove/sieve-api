@@ -48,7 +48,7 @@ kubectl port-forward $(kubectl get pod -l app=sieve-api  -o=jsonpath='{.items[0]
 7. Query Result
 ```
 # curl http://localhost:8080/data/<id>
-{"input":"whatever","latency":"117"}
+{"input":"dommy","latency":"48","output":"world0d2bfd51-347a-4221-9b6a-60a9e7873ee5"}
 ```
 
 ## Test

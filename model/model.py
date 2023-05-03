@@ -59,13 +59,21 @@ v1 = client.CoreV1Api()
 
 # hostname env var matches podname in k8s pods
 patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
-  "metadata":{"labels":{"setup-complete": "true"}}
+  "metadata":{"labels":{"model-ready": "true"}}
 })
-print("Pod annotation added. status='%s'" % str(patch_response.status))
+print("Pod label added. status='%s'" % str(patch_response.status))
 
 while True:
     job = redis_client.lpop(REDIS_JOB_QUEUE_NAME)
     if job is None:
+        # before exiting, update label on pod
+        patch_response = v1.patch_namespaced_pod(os.getenv('HOSTNAME'), "default", body={
+        "metadata":{"labels":{"model-ready": "false"}}
+        })
+        print("Pod label added. status='%s'" % str(patch_response.status))
+
         sys.exit()
+
     job_id = job.decode('utf-8')
     runJob(redis_client, job_id)
+
