@@ -64,3 +64,9 @@ After a test run, you can clear out the Completed Model Pods with:
 ```
 kubectl delete jobs `kubectl get jobs -o custom-columns=:.metadata.name`
 ```
+
+## Teardown
+Finally, to remove the application stack
+```
+make cleanup
+```
